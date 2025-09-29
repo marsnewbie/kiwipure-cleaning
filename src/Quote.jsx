@@ -13,61 +13,130 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils/index.js";
 
 export default function QuotePage() {
-  const [formData, setFormData] = useState({
-    client_name: "",
-    client_email: "",
-    client_phone: "",
-    company_name: "",
-    service_type: "",
-    building_type: "",
-    area_size: "",
-    frequency: "",
-    special_requirements: "",
-    location: ""
-  });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [estimatedPrice, setEstimatedPrice] = useState(0);
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    calculatePrice({ ...formData, [field]: value });
+  // Constants per provided spec
+  const PRICING = {
+    hourlyRate: 58,
+    chemPerHour: 2,
+    gst: 0.15,
+    minVisitHours: 2.0,
+    roundStep: 0.25,
+    productivity: {
+      office: 200,
+      factory: 150,
+      medical: 100,
+      gym: 120,
+      others: 120
+    },
+    frequency: {
+      daily:       { multiplier: 0.85, monthlyVisits: 21.67 },
+      thrice:      { multiplier: 0.92, monthlyVisits: 13.00 },
+      twice:       { multiplier: 0.92, monthlyVisits: 8.67 },
+      weekly:      { multiplier: 1.00, monthlyVisits: 4.33 },
+      fortnightly: { multiplier: 1.10, monthlyVisits: 2.17 }
+    },
+    pointMinutes: {
+      restroom: 8,
+      kitchenette: 8,
+      bin: 0.75
+    }
   };
 
-  const calculatePrice = (data) => {
-    const areaSize = parseFloat(data.area_size) || 0;
-    
-    // Base rate per sqm is $3 NZD
-    const baseRatePerSqm = 3;
-    
-    // Frequency coefficients
-    const frequencyCoefficients = {
-      one_time: 1.0,    // 100%
-      monthly: 0.95,    // 95%
-      bi_weekly: 0.9,   // 90%
-      weekly: 0.85      // 85%
-    };
+  const [formData, setFormData] = useState({
+    // Contact details
+    contactName: "",
+    email: "",
+    phone: "",
+    address: "",
+    // Site details
+    areaM2: "",
+    premisesType: "",
+    frequency: "",
+    timeWindows: [],
+    // Toggles (scope)
+    includeDesks: true,
+    includeVacuum: true,
+    includeMop: true,
+    includeDusting: true,
+    includeRestrooms: true,
+    includeKitchenette: true,
+    includeTrash: true,
+    // Points
+    restrooms: 0,
+    kitchenettes: 0,
+    bins: 0,
+    // Notes
+    special_requirements: ""
+  });
 
-    let frequencyCoeff = 1.0;
-    if (data.frequency && frequencyCoefficients[data.frequency]) {
-      frequencyCoeff = frequencyCoefficients[data.frequency];
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [outputs, setOutputs] = useState({
+    monthlyInclGST: 0,
+    monthlyExGST: 0,
+    perVisitExGST: 0,
+    perVisitInclGST: 0,
+    hoursPerVisit: 0
+  });
+
+  const roundUp = (value, step) => {
+    if (!isFinite(value)) return 0;
+    return Math.ceil(value / step) * step;
+  };
+
+  const handleInputChange = (field, value) => {
+    const next = { ...formData, [field]: value };
+    setFormData(next);
+    calculateOutputs(next);
+  };
+
+  const handleCheckboxChange = (field) => {
+    const next = { ...formData, [field]: !formData[field] };
+    setFormData(next);
+    calculateOutputs(next);
+  };
+
+  const handleMultiSelectToggle = (option) => {
+    let next = { ...formData };
+    const set = new Set(next.timeWindows);
+    if (set.has(option)) set.delete(option); else set.add(option);
+    next.timeWindows = Array.from(set);
+    setFormData(next);
+    // No effect on pricing, so no need to recalc
+  };
+
+  const calculateOutputs = (data) => {
+    const area = Math.max(0, parseFloat(data.areaM2) || 0);
+    if (!area || !data.premisesType || !data.frequency) {
+      setOutputs({ monthlyInclGST: 0, monthlyExGST: 0, perVisitExGST: 0, perVisitInclGST: 0, hoursPerVisit: 0 });
+      return;
     }
 
-    // Base calculation: Area × Base Rate × Frequency Coefficient
-    let basePrice = areaSize * baseRatePerSqm * frequencyCoeff;
-    
-    // Special requirements surcharge (10% if there are special requirements)
-    let surcharge = 0;
-    if (data.special_requirements && data.special_requirements.trim().length > 0) {
-      surcharge = basePrice * 0.1;
-    }
+    const productivity = PRICING.productivity[data.premisesType] || PRICING.productivity.others;
+    const freq = PRICING.frequency[data.frequency];
+    const pointsMinutes = (parseFloat(data.restrooms) || 0) * PRICING.pointMinutes.restroom
+      + (parseFloat(data.kitchenettes) || 0) * PRICING.pointMinutes.kitchenette
+      + (parseFloat(data.bins) || 0) * PRICING.pointMinutes.bin;
 
-    const total = Math.round(basePrice + surcharge);
-    setEstimatedPrice(total);
+    const baseHours = (area / productivity) * (freq?.multiplier || 1);
+    const pointsHours = pointsMinutes / 60.0;
+    const rawHours = baseHours + pointsHours;
+
+    let roundedHours = roundUp(rawHours, PRICING.roundStep);
+    if (roundedHours < PRICING.minVisitHours) roundedHours = PRICING.minVisitHours;
+
+    const visitExGST = (roundedHours * PRICING.hourlyRate) + (roundedHours * PRICING.chemPerHour);
+    const monthlyExGST = visitExGST * (freq?.monthlyVisits || 0);
+    const monthlyInclGST = monthlyExGST * (1 + PRICING.gst);
+    const perVisitExGST = visitExGST;
+    const perVisitInclGST = perVisitExGST * (1 + PRICING.gst);
+
+    setOutputs({
+      monthlyInclGST: Math.round(monthlyInclGST),
+      monthlyExGST: Math.round(monthlyExGST),
+      perVisitExGST: Math.round(perVisitExGST),
+      perVisitInclGST: Math.round(perVisitInclGST),
+      hoursPerVisit: roundedHours
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -75,10 +144,19 @@ export default function QuotePage() {
     setIsSubmitting(true);
 
     try {
+      // Map to entity if needed
       const result = await Quote.create({
-        ...formData,
-        area_size: parseFloat(formData.area_size),
-        estimated_price: estimatedPrice
+        client_name: formData.contactName,
+        client_email: formData.email,
+        client_phone: formData.phone,
+        company_name: "",
+        service_type: dataPremisesToService(formData.premisesType),
+        building_type: formData.premisesType,
+        area_size: parseFloat(formData.areaM2) || 0,
+        frequency: formData.frequency,
+        special_requirements: formData.special_requirements,
+        location: formData.address,
+        estimated_price: outputs.monthlyInclGST
       });
       setIsSubmitted(true);
     } catch (error) {
@@ -87,6 +165,8 @@ export default function QuotePage() {
       setIsSubmitting(false);
     }
   };
+
+  const dataPremisesToService = (v) => v || "others";
 
   if (isSubmitted) {
     return (
@@ -102,9 +182,10 @@ export default function QuotePage() {
                 Thank you for choosing KiwiPure Cleaning. We will be in touch within 24 hours with a detailed, personalised quote.
               </p>
               <div className="bg-blue-50 rounded-xl p-6 mb-8">
-                <h3 className="text-lg font-semibold text-blue-900 mb-2">Your Estimated Price</h3>
-                <p className="text-3xl font-bold text-blue-600">${estimatedPrice}</p>
-                <p className="text-sm text-blue-700 mt-2">*Final price subject to confirmation based on specific requirements.</p>
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">Your Estimated Monthly Price (incl. GST)</h3>
+                <p className="text-3xl font-bold text-blue-600">${outputs.monthlyInclGST}</p>
+                <p className="text-sm text-blue-700 mt-2">Per visit: ${outputs.perVisitExGST} ex GST (~{outputs.hoursPerVisit} h/visit)</p>
+                <p className="text-xs text-blue-700 mt-1">Disclaimer: Instant estimate. Final price subject to site walk-through.</p>
               </div>
               <Link to={createPageUrl("Home")}>
                 <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-xl text-lg font-semibold">
@@ -145,67 +226,125 @@ export default function QuotePage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="client_name" className="text-base">Full Name *</Label>
-                        <Input id="client_name" value={formData.client_name} onChange={(e) => handleInputChange('client_name', e.target.value)} placeholder="Your Name" required className="mt-2" />
+                        <Label htmlFor="contactName" className="text-base">Contact name *</Label>
+                        <Input id="contactName" value={formData.contactName} onChange={(e) => handleInputChange('contactName', e.target.value)} placeholder="Your Name" required className="mt-2" />
                       </div>
                       <div>
-                        <Label htmlFor="client_email" className="text-base">Email Address *</Label>
-                        <Input id="client_email" type="email" value={formData.client_email} onChange={(e) => handleInputChange('client_email', e.target.value)} placeholder="your@email.com" required className="mt-2" />
+                        <Label htmlFor="email" className="text-base">Email *</Label>
+                        <Input id="email" type="email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} placeholder="your@email.com" required className="mt-2" />
                       </div>
                       <div>
-                        <Label htmlFor="client_phone" className="text-base">Phone Number</Label>
-                        <Input id="client_phone" value={formData.client_phone} onChange={(e) => handleInputChange('client_phone', e.target.value)} placeholder="+64 21 123 4567" className="mt-2" />
+                        <Label htmlFor="phone" className="text-base">Phone *</Label>
+                        <Input id="phone" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="+64 21 123 4567" required className="mt-2" />
                       </div>
                       <div>
-                        <Label htmlFor="company_name" className="text-base">Company Name</Label>
-                        <Input id="company_name" value={formData.company_name} onChange={(e) => handleInputChange('company_name', e.target.value)} placeholder="Your Company Ltd" className="mt-2" />
+                        <Label htmlFor="address" className="text-base">Site address</Label>
+                        <Input id="address" value={formData.address} onChange={(e) => handleInputChange('address', e.target.value)} placeholder="e.g., Christchurch CBD" className="mt-2" />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Details</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Premises & Frequency</h3>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="building_type" className="text-base">Property Type *</Label>
-                        <Select value={formData.building_type} onValueChange={(value) => handleInputChange('building_type', value)}>
-                          <SelectTrigger className="mt-2"><SelectValue placeholder="Select property type" /></SelectTrigger>
+                        <Label htmlFor="premisesType" className="text-base">Premises type *</Label>
+                        <Select value={formData.premisesType} onValueChange={(value) => handleInputChange('premisesType', value)}>
+                          <SelectTrigger className="mt-2"><SelectValue placeholder="Select premises type" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="office">Office</SelectItem>
-                            <SelectItem value="retail">Retail Store</SelectItem>
-                            <SelectItem value="warehouse">Warehouse</SelectItem>
-                            <SelectItem value="medical">Medical Centre</SelectItem>
-                            <SelectItem value="restaurant">Restaurant</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="factory">Factory</SelectItem>
+                            <SelectItem value="medical">Medical</SelectItem>
+                            <SelectItem value="gym">Gym</SelectItem>
+                            <SelectItem value="others">Others</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label htmlFor="area_size" className="text-base">Area Size (sqm) *</Label>
-                        <Input id="area_size" type="number" value={formData.area_size} onChange={(e) => handleInputChange('area_size', e.target.value)} placeholder="e.g., 200" required className="mt-2" />
+                        <Label htmlFor="areaM2" className="text-base">Cleanable area (m²) *</Label>
+                        <Input id="areaM2" type="number" min={20} value={formData.areaM2} onChange={(e) => handleInputChange('areaM2', e.target.value)} placeholder="e.g., 200" required className="mt-2" />
                       </div>
                       <div>
-                        <Label htmlFor="frequency" className="text-base">Cleaning Frequency *</Label>
+                        <Label htmlFor="frequency" className="text-base">Cleaning frequency *</Label>
                         <Select value={formData.frequency} onValueChange={(value) => handleInputChange('frequency', value)}>
                           <SelectTrigger className="mt-2"><SelectValue placeholder="Select frequency" /></SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="thrice">3x per week</SelectItem>
+                            <SelectItem value="twice">2x per week</SelectItem>
                             <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="bi_weekly">Fortnightly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="one_time">One-off</SelectItem>
+                            <SelectItem value="fortnightly">Fortnightly</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label htmlFor="location" className="text-base">Service Address</Label>
-                        <Input id="location" value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} placeholder="e.g., Christchurch CBD" className="mt-2" />
+                        <Label className="text-base">Preferred time window</Label>
+                        <div className="mt-2 grid grid-cols-1 gap-2">
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={formData.timeWindows.includes('businessHours')} onChange={() => handleMultiSelectToggle('businessHours')} />
+                            Business hours
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={formData.timeWindows.includes('evening')} onChange={() => handleMultiSelectToggle('evening')} />
+                            Evening
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={formData.timeWindows.includes('weekend')} onChange={() => handleMultiSelectToggle('weekend')} />
+                            Weekend
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="special_requirements" className="text-base">Special Requirements</Label>
-                    <Textarea id="special_requirements" value={formData.special_requirements} onChange={(e) => handleInputChange('special_requirements', e.target.value)} placeholder="Please describe any specific cleaning needs or areas of focus..." rows={4} className="mt-2" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Scope of Work</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={formData.includeDesks} onChange={() => handleCheckboxChange('includeDesks')} /> Desks wipe
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={formData.includeVacuum} onChange={() => handleCheckboxChange('includeVacuum')} /> Vacuum floors
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={formData.includeMop} onChange={() => handleCheckboxChange('includeMop')} /> Mop hard floors
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={formData.includeDusting} onChange={() => handleCheckboxChange('includeDusting')} /> General dusting
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={formData.includeRestrooms} onChange={() => handleCheckboxChange('includeRestrooms')} /> Restrooms cleaning
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={formData.includeKitchenette} onChange={() => handleCheckboxChange('includeKitchenette')} /> Kitchenette cleaning
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={formData.includeTrash} onChange={() => handleCheckboxChange('includeTrash')} /> Trash & liners
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Points</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="restrooms" className="text-base"># of restrooms *</Label>
+                        <Input id="restrooms" type="number" min={0} value={formData.restrooms} onChange={(e) => handleInputChange('restrooms', e.target.value)} className="mt-2" />
+                      </div>
+                      <div>
+                        <Label htmlFor="kitchenettes" className="text-base"># of kitchenettes *</Label>
+                        <Input id="kitchenettes" type="number" min={0} value={formData.kitchenettes} onChange={(e) => handleInputChange('kitchenettes', e.target.value)} className="mt-2" />
+                      </div>
+                      <div>
+                        <Label htmlFor="bins" className="text-base"># of bins *</Label>
+                        <Input id="bins" type="number" min={0} value={formData.bins} onChange={(e) => handleInputChange('bins', e.target.value)} className="mt-2" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="special_requirements" className="text-base">Special requirements</Label>
+                    <Textarea id="special_requirements" value={formData.special_requirements} onChange={(e) => handleInputChange('special_requirements', e.target.value)} placeholder="Any additional notes..." rows={4} className="mt-2" />
                   </div>
 
                   <Button type="submit" disabled={isSubmitting} className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white py-4 text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300">
@@ -226,13 +365,41 @@ export default function QuotePage() {
               </CardHeader>
               <CardContent className="p-6 pt-0">
                 <div className="text-center mb-6">
-                  <div className="text-4xl font-bold text-blue-600 mb-2">${estimatedPrice}</div>
-                  <p className="text-gray-600">Estimated Price (NZD)</p>
+                  <div className="text-4xl font-bold text-blue-600 mb-2">${outputs.monthlyInclGST}</div>
+                  <p className="text-gray-600">Estimated monthly price (incl. GST)</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm mb-6">
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <div className="text-gray-500">Monthly ex GST</div>
+                    <div className="font-semibold">${outputs.monthlyExGST}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <div className="text-gray-500">Per visit ex GST</div>
+                    <div className="font-semibold">${outputs.perVisitExGST}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <div className="text-gray-500">Per visit incl. GST</div>
+                    <div className="font-semibold">${outputs.perVisitInclGST}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 text-center">
+                    <div className="text-gray-500">Hours per visit</div>
+                    <div className="font-semibold">{outputs.hoursPerVisit}</div>
+                  </div>
                 </div>
                 
                 <Alert className="border-blue-200 bg-blue-50">
                   <AlertDescription className="text-blue-800">
-                    This is a preliminary estimate based on the information provided. Our commitment to transparent pricing means your final quote will be detailed and all-inclusive.
+                    Scope included: {' '}
+                    {[
+                      formData.includeDesks && 'desks',
+                      formData.includeVacuum && 'vacuum',
+                      formData.includeMop && 'mop',
+                      formData.includeDusting && 'dusting',
+                      formData.includeRestrooms && 'restrooms',
+                      formData.includeKitchenette && 'kitchenette',
+                      formData.includeTrash && 'trash'
+                    ].filter(Boolean).join(', ')}.
+                    {' '}Disclaimer: Instant estimate. Final price subject to site walk-through.
                   </AlertDescription>
                 </Alert>
               </CardContent>
