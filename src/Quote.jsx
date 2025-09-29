@@ -1,5 +1,6 @@
 
 import React, { useState } from "react";
+import { Quote } from "./entities/Quote.js";
 import { Button } from "./components/ui/button.js";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card.js";
 import { Input } from "./components/ui/input.js";
@@ -74,8 +75,7 @@ export default function QuotePage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement Quote.create
-      console.log('Quote data:', {
+      const result = await Quote.create({
         ...formData,
         area_size: parseFloat(formData.area_size),
         estimated_price: estimatedPrice

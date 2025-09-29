@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ContactMessage } from "./entities/ContactMessage.js";
 import { Button } from "./components/ui/button.js";
 import { Card, CardContent, CardHeader } from "./components/ui/card.js";
 import { Input } from "./components/ui/input.js";
@@ -24,8 +25,7 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      // TODO: Implement ContactMessage.create formData
-      console.log("Form data:", formData);
+      const result = await ContactMessage.create(formData);
       setIsSubmitted(true);
     } catch (error) {
       console.error("Failed to send message:", error);
