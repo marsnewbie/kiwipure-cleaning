@@ -9,8 +9,8 @@ import {
   ArrowRight,
   Phone
 } from "lucide-react";
-import { Button } from "./components/ui/button.js";
-import { Card, CardContent } from "./components/ui/card.js";
+import { Button } from "./components/ui/button.jsx";
+import { Card, CardContent } from "./components/ui/card.jsx";
 
 export default function Home() {
   const features = [

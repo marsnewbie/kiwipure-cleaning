@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import React from 'react'
 import { clsx } from 'clsx'
 

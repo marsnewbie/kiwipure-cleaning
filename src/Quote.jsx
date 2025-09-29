@@ -1,14 +1,14 @@
 
 import React, { useState } from "react";
 import { Quote } from "./entities/Quote.js";
-import { Button } from "./components/ui/button.js";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card.js";
-import { Input } from "./components/ui/input.js";
-import { Label } from "./components/ui/label.js";
-import { Textarea } from "./components/ui/textarea.js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select.js";
+import { Button } from "./components/ui/button.jsx";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card.jsx";
+import { Input } from "./components/ui/input.jsx";
+import { Label } from "./components/ui/label.jsx";
+import { Textarea } from "./components/ui/textarea.jsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select.jsx";
 import { Calculator, CheckCircle, Clock, DollarSign } from "lucide-react";
-import { Alert, AlertDescription } from "./components/ui/alert.js";
+import { Alert, AlertDescription } from "./components/ui/alert.jsx";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils/index.js";
 

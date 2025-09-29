@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { ContactMessage } from "./entities/ContactMessage.js";
-import { Button } from "./components/ui/button.js";
-import { Card, CardContent, CardHeader } from "./components/ui/card.js";
-import { Input } from "./components/ui/input.js";
-import { Label } from "./components/ui/label.js";
-import { Textarea } from "./components/ui/textarea.js";
+import { Button } from "./components/ui/button.jsx";
+import { Card, CardContent, CardHeader } from "./components/ui/card.jsx";
+import { Input } from "./components/ui/input.jsx";
+import { Label } from "./components/ui/label.jsx";
+import { Textarea } from "./components/ui/textarea.jsx";
 import { Leaf, Phone, Mail, MapPin, Send, CheckCircle } from "lucide-react";
 
 export default function ContactPage() {
