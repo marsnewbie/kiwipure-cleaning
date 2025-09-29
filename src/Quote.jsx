@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card.j
 import { Input } from "./components/ui/input.jsx";
 import { Label } from "./components/ui/label.jsx";
 import { Textarea } from "./components/ui/textarea.jsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select.jsx";
+// Note: Use native select/option in this file to ensure value updates trigger calculations
 import { Calculator, CheckCircle, Clock, DollarSign } from "lucide-react";
 import { Alert, AlertDescription } from "./components/ui/alert.jsx";
 import { Link } from "react-router-dom";
@@ -249,16 +249,20 @@ export default function QuotePage() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="premisesType" className="text-base">Premises type *</Label>
-                        <Select value={formData.premisesType} onValueChange={(value) => handleInputChange('premisesType', value)}>
-                          <SelectTrigger className="mt-2"><SelectValue placeholder="Select premises type" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="office">Office</SelectItem>
-                            <SelectItem value="factory">Factory</SelectItem>
-                            <SelectItem value="medical">Medical</SelectItem>
-                            <SelectItem value="gym">Gym</SelectItem>
-                            <SelectItem value="others">Others</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <select
+                          id="premisesType"
+                          className="mt-2 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                          value={formData.premisesType}
+                          onChange={(e) => handleInputChange('premisesType', e.target.value)}
+                          required
+                        >
+                          <option value="" disabled>Select premises type</option>
+                          <option value="office">Office</option>
+                          <option value="factory">Factory</option>
+                          <option value="medical">Medical</option>
+                          <option value="gym">Gym</option>
+                          <option value="others">Others</option>
+                        </select>
                       </div>
                       <div>
                         <Label htmlFor="areaM2" className="text-base">Cleanable area (m²) *</Label>
@@ -266,16 +270,20 @@ export default function QuotePage() {
                       </div>
                       <div>
                         <Label htmlFor="frequency" className="text-base">Cleaning frequency *</Label>
-                        <Select value={formData.frequency} onValueChange={(value) => handleInputChange('frequency', value)}>
-                          <SelectTrigger className="mt-2"><SelectValue placeholder="Select frequency" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="thrice">3x per week</SelectItem>
-                            <SelectItem value="twice">2x per week</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="fortnightly">Fortnightly</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <select
+                          id="frequency"
+                          className="mt-2 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                          value={formData.frequency}
+                          onChange={(e) => handleInputChange('frequency', e.target.value)}
+                          required
+                        >
+                          <option value="" disabled>Select frequency</option>
+                          <option value="daily">Daily</option>
+                          <option value="thrice">3x per week</option>
+                          <option value="twice">2x per week</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="fortnightly">Fortnightly</option>
+                        </select>
                       </div>
                       <div>
                         <Label className="text-base">Preferred time window</Label>
@@ -365,26 +373,8 @@ export default function QuotePage() {
               </CardHeader>
               <CardContent className="p-6 pt-0">
                 <div className="text-center mb-6">
-                  <div className="text-4xl font-bold text-blue-600 mb-2">${outputs.monthlyInclGST}</div>
-                  <p className="text-gray-600">Estimated monthly price (incl. GST)</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm mb-6">
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <div className="text-gray-500">Monthly ex GST</div>
-                    <div className="font-semibold">${outputs.monthlyExGST}</div>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <div className="text-gray-500">Per visit ex GST</div>
-                    <div className="font-semibold">${outputs.perVisitExGST}</div>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <div className="text-gray-500">Per visit incl. GST</div>
-                    <div className="font-semibold">${outputs.perVisitInclGST}</div>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 text-center">
-                    <div className="text-gray-500">Hours per visit</div>
-                    <div className="font-semibold">{outputs.hoursPerVisit}</div>
-                  </div>
+                  <div className="text-4xl font-bold text-blue-600 mb-2">${outputs.monthlyExGST}</div>
+                  <p className="text-gray-600">Estimated monthly price (ex GST)</p>
                 </div>
                 
                 <Alert className="border-blue-200 bg-blue-50">
