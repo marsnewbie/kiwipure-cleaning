@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Quote } from "./entities/Quote.js";
 import { Button } from "./components/ui/button.jsx";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card.jsx";
@@ -138,6 +138,12 @@ export default function QuotePage() {
       hoursPerVisit: roundedHours
     });
   };
+
+  // Always keep outputs in sync with form data
+  useEffect(() => {
+    calculateOutputs(formData);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.premisesType, formData.frequency, formData.areaM2, formData.restrooms, formData.kitchenettes, formData.bins]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
