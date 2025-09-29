@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { ContactMessage } from "@/entities/ContactMessage";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "./components/ui/button.js";
+import { Card, CardContent, CardHeader } from "./components/ui/card.js";
+import { Input } from "./components/ui/input.js";
+import { Label } from "./components/ui/label.js";
+import { Textarea } from "./components/ui/textarea.js";
 import { Leaf, Phone, Mail, MapPin, Send, CheckCircle } from "lucide-react";
 
 export default function ContactPage() {
@@ -25,7 +24,8 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await ContactMessage.create(formData);
+      // TODO: Implement ContactMessage.create formData
+      console.log("Form data:", formData);
       setIsSubmitted(true);
     } catch (error) {
       console.error("Failed to send message:", error);

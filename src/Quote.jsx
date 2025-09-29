@@ -1,16 +1,15 @@
 
 import React, { useState } from "react";
-import { Quote } from "@/entities/Quote";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "./components/ui/button.js";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card.js";
+import { Input } from "./components/ui/input.js";
+import { Label } from "./components/ui/label.js";
+import { Textarea } from "./components/ui/textarea.js";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select.js";
 import { Calculator, CheckCircle, Clock, DollarSign } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "./components/ui/alert.js";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { createPageUrl } from "./utils/index.js";
 
 export default function QuotePage() {
   const [formData, setFormData] = useState({
@@ -75,7 +74,8 @@ export default function QuotePage() {
     setIsSubmitting(true);
 
     try {
-      await Quote.create({
+      // TODO: Implement Quote.create
+      console.log('Quote data:', {
         ...formData,
         area_size: parseFloat(formData.area_size),
         estimated_price: estimatedPrice

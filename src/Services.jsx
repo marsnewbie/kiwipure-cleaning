@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { createPageUrl } from "./utils/index.js";
 import { 
   Building2, 
   Home, 
@@ -10,8 +10,8 @@ import {
   ArrowRight,
   Phone
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "./components/ui/button.js";
+import { Card, CardContent, CardHeader } from "./components/ui/card.js";
 
 export default function Services() {
   const services = [
